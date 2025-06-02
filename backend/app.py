@@ -5,7 +5,7 @@ from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 from datetime import datetime
 
-DB_PATH = os.getenv("HAL_DB_PATH", "hal_fiyatlari.db")
+DB_PATH = os.getenv("HAL_DB_PATH", "/Users/miotehuzeyfe/Desktop/projeler/hal_project/hal_fiyatlari.db")
 
 app = Flask(__name__)
 CORS(app)
