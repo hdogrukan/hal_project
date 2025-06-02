@@ -1,38 +1,38 @@
-name: Günlük Hal Verisi Çekme
+name: Hal Fiyatlarını Güncelle
 
 on:
   schedule:
-    - cron: '30 4 * * *'  # UTC 04:30 = Türkiye saatiyle 07:30
-  workflow_dispatch:      # Elle tetikleme desteği
+    - cron: '30 4 * * *'  # Her gün saat 07:30'da Türkiye saatiyle
+  workflow_dispatch:
 
 jobs:
-  run-scraper:
+  scrape-and-commit:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repo'yu klonla
+      - name: Reposuyu klonla
         uses: actions/checkout@v3
 
-      - name: Python kurulumunu yap
+      - name: Python kurulumu
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Gerekli paketleri kur
         run: |
-          python -m pip install --upgrade pip
           pip install requests beautifulsoup4
 
-      - name: Scraper'ı çalıştır
-        run: python backend/scraper.py
+      - name: Script'i çalıştır
+        run: |
+          python backend/scraper.py
 
       - name: Değişiklikleri GitHub'a gönder
         env:
-          MIOTE: ${{ secrets.MIOTE }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git remote set-url origin https://x-access-token:${MIOTE}@github.com/${{ github.repository }}
+          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}
           git add hal_fiyatlari.db
           git commit -m "Veritabanı güncellendi: $(date '+%Y-%m-%d')" || echo "Değişiklik yok"
           git push
