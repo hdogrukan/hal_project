@@ -28,11 +28,11 @@ jobs:
 
       - name: Değişiklikleri GitHub'a gönder
         env:
-          miote: ${{ secrets.miote }}
+          MIOTE: ${{ secrets.MIOTE }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git remote set-url origin https://x-access-token:${miote}@github.com/${{ github.repository }}
+          git remote set-url origin https://x-access-token:${MIOTE}@github.com/${{ github.repository }}
           git add hal_fiyatlari.db
           git commit -m "Veritabanı güncellendi: $(date '+%Y-%m-%d')" || echo "Değişiklik yok"
           git push
