@@ -1,0 +1,1 @@
+30 7 * * * /Users/miotehuzeyfe/Desktop/projeler/hal_project/backend/run_scraper.sh

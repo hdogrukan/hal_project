@@ -1,0 +1,9 @@
+2025-05-27 22:30:16,160 - hal_fiyatlari_scraper - INFO - Veritabanı başarıyla oluşturuldu: hal_fiyatlari.db
+2025-05-27 22:30:16,767 - hal_fiyatlari_scraper - INFO - Tarih 2025-05-27 için 84 meyve/sebze ve 96 balık fiyatı kaydedildi
+2025-05-27 22:30:16,767 - hal_fiyatlari_scraper - INFO - Veritabanı bağlantısı kapatıldı
+2025-05-28 10:25:22,412 - hal_fiyatlari_scraper - INFO - Veritabanı başarıyla oluşturuldu: hal_fiyatlari.db
+2025-05-28 10:25:22,951 - hal_fiyatlari_scraper - INFO - Tarih 2025-05-27 için 84 meyve/sebze ve 96 balık fiyatı kaydedildi
+2025-05-28 10:25:22,951 - hal_fiyatlari_scraper - INFO - Veritabanı bağlantısı kapatıldı
+2025-06-02 13:14:08,815 - hal_fiyatlari_scraper - INFO - Veritabanı başarıyla oluşturuldu: hal_fiyatlari.db
+2025-06-02 13:14:09,377 - hal_fiyatlari_scraper - INFO - Tarih 2025-05-29 için 84 meyve/sebze ve 48 balık fiyatı kaydedildi
+2025-06-02 13:14:09,377 - hal_fiyatlari_scraper - INFO - Veritabanı bağlantısı kapatıldı
