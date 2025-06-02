@@ -27,9 +27,12 @@ jobs:
         run: python backend/scraper.py
 
       - name: Değişiklikleri GitHub'a gönder
+        env:
+          miote: ${{ secrets.miote }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          git remote set-url origin https://x-access-token:${miote}@github.com/${{ github.repository }}
           git add hal_fiyatlari.db
           git commit -m "Veritabanı güncellendi: $(date '+%Y-%m-%d')" || echo "Değişiklik yok"
           git push
