@@ -43,21 +43,31 @@ def fetch_prices(pid:int):
     return dict(product=dict(product), prices=df.to_dict("records"))
 
 def calc_cost(items):
-    pid_qty = {i['product_id']:i['qty'] for i in items}
+    pid_qty = {i['product_id']: i['qty'] for i in items}
     ids = tuple(pid_qty.keys())
-    marks = ",".join("?"*len(ids))
+
+    if not ids:
+        return {"total_min": 0.0, "total_max": 0.0}
+
+    marks = ",".join("?" * len(ids))
     db = get_db()
-    rows = db.execute(f"""SELECT p.id,pr.min_price,pr.max_price
-                           FROM products p
-                           JOIN prices pr ON pr.product_id=p.id
-                           WHERE p.id IN ({marks}) AND pr.date=(SELECT MAX(date) FROM prices pr2 WHERE pr2.product_id=p.id)""", ids).fetchall()
+    rows = db.execute(
+        f"""SELECT p.id, pr.min_price, pr.max_price
+             FROM products p
+             JOIN prices pr ON pr.product_id=p.id
+             WHERE p.id IN ({marks})
+               AND pr.date=(SELECT MAX(date) FROM prices pr2 WHERE pr2.product_id=p.id)""",
+        ids,
+    ).fetchall()
     db.close()
-    tmin=tmax=0
+
+    tmin = tmax = 0
     for r in rows:
-        qty=pid_qty[r['id']]
-        tmin+=r['min_price']*qty
-        tmax+=r['max_price']*qty
-    return dict(total_min=round(tmin,2), total_max=round(tmax,2))
+        qty = pid_qty[r["id"]]
+        tmin += r["min_price"] * qty
+        tmax += r["max_price"] * qty
+
+    return {"total_min": round(tmin, 2), "total_max": round(tmax, 2)}
 
 @app.route("/api/products")
 def products(): return jsonify(fetch_products())
