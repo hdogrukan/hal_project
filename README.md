@@ -1,313 +1,232 @@
-# Ankara Hal Backend
+# Ankara Hal Fiyatları Uygulaması
 
-Bu klasörde, Ankara Büyükşehir Belediyesi’nin **hal fiyatları verisini toplayan (scraper)** ve bu veriyi
-**SQLite veritabanından okuyup REST API olarak sunan (Flask backend)** kodlar bulunur.
+Ankara Büyükşehir Belediyesi’nin **hal fiyatları verisini** toplayan, saklayan ve
+modern bir web arayüzüyle gösteren tam yığın (full‑stack) bir projedir.
 
-Ana bileşenler:
-- `scraper.py` → Ankara Hal sayfasından fiyatları çekip `hal_fiyatlari.db` veritabanına kaydeder.
-- `app.py` → Veritabanındaki ürün ve fiyat bilgilerini JSON API olarak sunar.
-- `run_scraper.sh` + `crontab_script.txt` → Scraper’ı her gün otomatik çalıştırmak için örnek cron ayarı.
-- `../hal_fiyatlari.db` → Verilerin saklandığı SQLite veritabanı (otomatik oluşturulur/güncellenir).
+Projede üç ana parça vardır:
+- **Scraper (backend/scraper.py)**  
+  Resmi ABB hal fiyatları sayfasından verileri çekip SQLite veritabanına yazar.
+- **Backend API (backend/app.py)**  
+  Veritabanındaki ürün ve fiyat bilgilerini JSON REST API olarak sunar.
+- **Frontend (frontend)**  
+  React + Vite tabanlı, ürün listesi, fiyat grafikleri ve alışveriş listesi içeren arayüz.
+
+---
+
+## Dizin Yapısı
+
+```text
+.
+├── backend/              # Flask API + scraper
+│   ├── app.py            # REST API
+│   ├── scraper.py        # ABB hal sayfası scraper
+│   ├── run_scraper.sh    # Cron ile çalıştırma örneği
+│   └── README.md         # Backend'e özel detaylar
+├── frontend/             # React + Vite arayüzü
+│   ├── src/              # UI bileşenleri, sayfalar
+│   └── package.json
+├── hal_fiyatlari.db      # SQLite veritabanı (scraper tarafından oluşturulur)
+└── requirements.txt      # Python bağımlılıkları (backend + scraper)
+```
 
 ---
 
 ## Gereksinimler
 
+**Backend / Scraper:**
 - Python 3.10+ (tercihen 3.11 veya üstü)
 - `pip` paket yöneticisi
-- (Opsiyonel) Sanal ortam (`venv`) kullanımı
-- İnternet bağlantısı (sadece `scraper.py` çalışırken gerekir)
 
-Kullanılan Python paketleri `requirements.txt` dosyasında tanımlıdır:
+**Frontend:**
+- Node.js 18+ (önerilir)
+- `npm` (veya `pnpm`, `yarn`, vb.)
 
-- Flask
-- Flask-Cors
+Python tarafında kullanılan temel kütüphaneler (`requirements.txt`):
+- Flask, Flask-Cors
 - pandas
 - requests
 - beautifulsoup4
 
+Frontend tarafında (`frontend/package.json`):
+- React, React Router
+- Vite
+- Tailwind CSS
+- @tanstack/react-query
+- Recharts
+- Zustand
+
 ---
 
-## Kurulum (Backend + Scraper)
+## Hızlı Başlangıç
 
-Proje kök dizinindeyken:
+### 1. Backend ve Scraper’ı Kurma
+
+Proje kök dizininden:
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # Windows için: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r ../requirements.txt
-```
+``>
 
-> Not: `requirements.txt` dosyası proje kök dizinindedir, bu yüzden `../requirements.txt` verilmiştir.
-
----
-
-## Veritabanı Yapısı (`hal_fiyatlari.db`)
-
-Scraper ilk çalıştığında, veritabanı yoksa otomatik oluşturur ve aşağıdaki tabloları kurar:
-
-### `categories` tablosu
-- `id` (INTEGER, PK)  
-- `name` (TEXT)  
-- `created_at` (TIMESTAMP, varsayılan CURRENT_TIMESTAMP)
-
-Öntanımlı kayıtlar:
-- `1, "MEYVE / SEBZE"`
-- `2, "BALIK"`
-
-### `products` tablosu
-- `id` (INTEGER, PK, AUTOINCREMENT)  
-- `category_id` (INTEGER, `categories.id` FK)  
-- `name` (TEXT) → Ürün adı (örn. "DOMATES")  
-- `unit` (TEXT) → Birim (örn. "KG", "ADET")  
-- `image_url` (TEXT, opsiyonel) → Ürün görseli için link  
-- `created_at` (TIMESTAMP)  
-- `updated_at` (TIMESTAMP)
-
-### `prices` tablosu
-- `id` (INTEGER, PK, AUTOINCREMENT)  
-- `product_id` (INTEGER, `products.id` FK)  
-- `min_price` (DECIMAL) → Günün minimum hal fiyatı  
-- `max_price` (DECIMAL) → Günün maksimum hal fiyatı  
-- `date` (DATE, `YYYY-MM-DD`) → Fiyatın geçerli olduğu gün  
-- `created_at` (TIMESTAMP)  
-- `UNIQUE(product_id, date)` → Aynı ürün için aynı gün bir kayıt
-
----
-
-## Scraper (`scraper.py`) Kullanımı
-
-Scraper, `https://www.ankara.bel.tr/hal-fiyatlari` adresindeki fiyat listesini okuyup
-tablolara kayıt atar.
-
-### Temel çalıştırma
+Veritabanını oluşturmak ve ilk verileri çekmek için:
 
 ```bash
-cd backend
 python scraper.py
 ```
 
-- Varsayılan olarak **bugünün tarihini** çekmeye çalışır.
-- Veritabanı dosyası varsayılan olarak `backend/hal_fiyatlari.db` yolunda tutulur.
-
-### Parametreler
+Ardından Flask API’yi başlatın:
 
 ```bash
-python scraper.py --date 01.01.2024
-python scraper.py --start-date 01.01.2024 --end-date 07.01.2024
-python scraper.py --db /farkli/bir/yol/hal_fiyatlari.db
+python app.py
 ```
 
-- `--date DD.MM.YYYY`  
-  Belirli bir günün verisini çeker.
+Varsayılan:
+- API adresi: `http://localhost:5001`
+- Veritabanı: proje kökündeki `hal_fiyatlari.db`
 
-- `--start-date DD.MM.YYYY` ve `--end-date DD.MM.YYYY`  
-  Belirtilen tarih aralığındaki **her gün** için verileri çeker. İki tarih de dahil.
+> Daha ayrıntılı backend dökümantasyonu için: `backend/README.md`
 
-- `--db PATH`  
-  Veritabanı dosyasının yolunu özelleştirir.
+### 2. Frontend’i Kurma ve Çalıştırma
 
-Scraper her çalıştırıldığında:
-- `categories` tablosu varsa kullanır, yoksa oluşturur.
-- Ürünler `name + unit + category_id` kombinasyonuna göre bulunur veya yeni ürün eklenir.
-- Fiyatlar `prices` tablosuna kaydedilir. Aynı gün ve ürün için kayıt varsa `INSERT OR REPLACE`
-  ile güncellenir.
+Yeni bir terminalde:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Varsayılan olarak Vite:
+- Uygulama: `http://localhost:5173`
+- `vite.config.ts` içinde `/api` isteklerini `http://localhost:5001` adresine proxy eder.  
+  Bu nedenle frontend çalışırken backend’in de çalışıyor olması gerekir.
+
+Üretim build’i almak için:
+
+```bash
+cd frontend
+npm run build
+npm run preview    # build edilmiş halini test etmek için
+```
 
 ---
 
-## Cron ile Otomatik Çalıştırma
+## Backend Özeti (Flask API + Scraper)
 
-Backende düzenli veri akışı sağlamak için `scraper.py` günlük çalıştırılabilir.
+Backend iki ana dosyadan oluşur:
 
-### Örnek shell script (`run_scraper.sh`)
+- `backend/scraper.py`  
+  - ABB’nin `https://www.ankara.bel.tr/hal-fiyatlari` sayfasından günlük/geriye dönük fiyatları çeker.  
+  - Veriler `hal_fiyatlari.db` dosyasında şu tablolara kaydedilir:
+    - `categories` (Sebze/Meyve, Balık)
+    - `products` (ürün adı, birim, kategori)
+    - `prices` (min/max fiyat, tarih, ürün)
+  - Parametreler:
+    - `--date DD.MM.YYYY` → Tek bir gün
+    - `--start-date` ve `--end-date` → Tarih aralığı
+    - `--db PATH` → Veritabanı yolunu değiştirme
 
-`backend/run_scraper.sh`:
+- `backend/app.py`  
+  - SQLite veritabanından okuyup JSON API olarak döner.
+  - CORS açık olduğu için başka porttaki frontend’ler erişebilir.
+  - Varsayılan veritabanı yolu, `HAL_DB_PATH` ortam değişkeniyle değiştirilebilir:
 
-```bash
-#!/bin/bash
-source ~/.bash_profile
-/opt/miniconda3/envs/myenv/bin/python /Users/miotehuzeyfe/Desktop/projeler/hal_project/backend/scraper.py >> /Users/miotehuzeyfe/Desktop/projeler/hal_project/backend/logs/hal_scraper.log 2>&1
-```
+    ```bash
+    export HAL_DB_PATH="/path/to/hal_fiyatlari.db"
+    python app.py
+    ```
 
-- Önce ortam değişkenleri yüklenir (`~/.bash_profile`).
-- İlgili conda/venv ortamındaki Python ile `scraper.py` çalıştırılır.
-- Loglar `backend/logs/hal_scraper.log` dosyasına eklenir.
+### API Uç Noktaları
 
-### Örnek crontab kaydı
+- `GET /api/products`  
+  Tüm ürünleri ve her ürün için **en güncel min/max fiyatı** döner.
 
-`backend/crontab_script.txt` içeriği:
+- `GET /api/prices/<int:id>`  
+  Belirli ürünün **tüm tarihli fiyat listesini** döner (grafikte kullanmak için uygundur).
 
-```cron
-30 7 * * * /Users/miotehuzeyfe/Desktop/projeler/hal_project/backend/run_scraper.sh
-```
+- `POST /api/shopping/cost`  
+  İstek gövdesinde gönderilen ürün + miktar listesi için, güncel fiyatlara göre minimum ve maksimum toplam alışveriş tutarını hesaplar.
 
-Bu ayar, her gün **sabah 07:30’da** scraper’ı çalıştırır.
+> Backend’in tüm detayları, tablo şemaları, örnek JSON çıktıları vb. için:
+> `backend/README.md` dosyasına bakabilirsiniz.
 
-Crontab’a eklemek için:
+---
+
+## Frontend Özeti (React + Vite)
+
+Frontend, API’den aldığı verileri kullanıcıya sunan tek sayfa uygulamasıdır.
+
+### Mimari ve Teknolojiler
+
+- React 18
+- Vite 5
+- React Router (`/` ve `/product/:id` sayfaları)
+- Tailwind CSS ile sade tasarım
+- @tanstack/react-query → API istekleri ve cache
+- Axios → HTTP istemcisi (`frontend/src/api/client.ts`)
+- Zustand → Alışveriş listesi (sepet) durumu
+- Recharts → Fiyat geçmişi grafiği
+
+### Önemli Parçalar
+
+- `frontend/src/api/client.ts`  
+  - `baseURL: "/api"` olarak ayarlı Axios istemcisi.  
+  - Vite dev sunucusunda `/api` istekleri otomatik olarak `http://localhost:5001`’e yönlenir.
+
+- `frontend/src/hooks/useProducts.ts`  
+  - `GET /api/products` ile ürünleri çeker.  
+  - React Query üzerinden cache yönetimi yapar.
+
+- `frontend/src/pages/Home.tsx`  
+  - “Güncel Ürün Listesi” başlığı.  
+  - `ProductGrid` bileşeni ile arama ve kategori bazlı ürün listesi.
+
+- `frontend/src/components/products/ProductGrid.tsx`  
+  - Ürünleri arama kutusuna göre filtreler.  
+  - Kategorilere (Sebze/Meyve, Balık) göre gruplayıp kartlar halinde gösterir.
+
+- `frontend/src/pages/ProductPage.tsx`  
+  - `/product/:id` rotası.  
+  - `GET /api/prices/:id` ile ürün detayını ve fiyat geçmişini çeker.  
+  - Kullanıcı miktar girip ürünü alışveriş listesine ekleyebilir.  
+  - `PriceHistoryChart` ile tarihsel min/max fiyat grafiği gösterilir.
+
+- `frontend/src/components/shopping/ShoppingList.tsx` ve `ShoppingListDrawer.tsx`  
+  - Sağ üstteki sepet ikonuna tıklandığında açılan panel.  
+  - Seçili ürünleri, adetleri ve tahmini min–max toplam tutarı gösterir.  
+  - Zustand ile global state yönetimi.
+
+- `frontend/src/components/Layout.tsx`  
+  - Üst bar, sepet, içerik alanı ve footer yerleşimini sağlar.
+
+---
+
+## Otomatik Veri Güncelleme (Cron)
+
+Verilerin her gün otomatik güncellenmesini istiyorsanız:
+
+1. `backend/run_scraper.sh` içindeki Python yolu ve proje yolunu kendi ortamınıza göre güncelleyin.
+2. `backend/crontab_script.txt` içeriğini düzenleyip crontab’a ekleyin:
 
 ```bash
 crontab backend/crontab_script.txt
 ```
 
-> Not: Bu dosyadaki yollar, mevcut makineye özeldir. Kendi ortamınıza göre güncellemeniz gerekir.
+Örnek satır (her gün 07:30’da):
 
----
-
-## Backend API (`app.py`) Kullanımı
-
-Backend, Flask ile yazılmış basit bir REST API sunar.
-
-### Çalıştırma
-
-Önce veritabanınızda (kök dizindeki `hal_fiyatlari.db`) verinin olduğundan emin olun
-(yani en az bir kez `scraper.py` çalışmış olmalı).
-
-Ardından:
-
-```bash
-cd backend
-python app.py
+```cron
+30 7 * * * /.../hal_project/backend/run_scraper.sh
 ```
-
-Sunucu varsayılan olarak:
-- Host: `0.0.0.0`
-- Port: `5001`
-- `debug=True`
-
-Tarayıcıdan veya istemciden şu adresleri deneyebilirsiniz:
-- `http://localhost:5001/api/products`
-
-### Ortam değişkenleri
-
-- `HAL_DB_PATH` → Backend’in kullanacağı SQLite dosyasının tam yolu.  
-  Varsayılan değer:
-  `/Users/miotehuzeyfe/Desktop/projeler/hal_project/hal_fiyatlari.db`
-
-Kendi ortamınızda şu şekilde değiştirebilirsiniz:
-
-```bash
-export HAL_DB_PATH="/path/to/hal_fiyatlari.db"
-python app.py
-```
-
----
-
-## API Uç Noktaları
-
-### 1. `GET /api/products`
-
-Tüm ürünleri ve her ürün için **en güncel min/max fiyatı** döner.
-
-Örnek cevap:
-
-```json
-[
-  {
-    "id": 1,
-    "name": "DOMATES",
-    "unit": "KG",
-    "category_id": 1,
-    "image_url": null,
-    "latest_min": 12.5,
-    "latest_max": 18.0
-  },
-  ...
-]
-```
-
-Notlar:
-- `latest_min` ve `latest_max`, ilgili ürün için `prices` tablosundaki **en son tarihe ait** kayıtlar üzerinden hesaplanır.
-- Sonuçlar `category_id, name` sırasına göre sıralanır.
-
-### 2. `GET /api/prices/<int:id>`
-
-Belirli bir ürünün **tüm fiyat geçmişini** döner.
-
-Örnek istek:
-
-```http
-GET /api/prices/1
-```
-
-Örnek cevap:
-
-```json
-{
-  "product": {
-    "id": 1,
-    "name": "DOMATES",
-    "unit": "KG",
-    "category_id": 1,
-    "image_url": null
-  },
-  "prices": [
-    {
-      "date": "2024-01-01",
-      "min_price": 10.0,
-      "max_price": 15.0
-    },
-    {
-      "date": "2024-01-02",
-      "min_price": 11.0,
-      "max_price": 16.0
-    }
-  ]
-}
-```
-
-Notlar:
-- Tarihler `YYYY-MM-DD` formatında döner.
-- Ürün bulunamazsa **404 Not Found** döner.
-
-### 3. `POST /api/shopping/cost`
-
-Belirli ürünlerden oluşan bir alışveriş listesinin, **güncel fiyatlara göre minimum ve maksimum toplam maliyetini** hesaplar.
-
-İstek gövdesi (`JSON`):
-
-```json
-{
-  "items": [
-    { "product_id": 1, "qty": 2.5 },
-    { "product_id": 5, "qty": 1 }
-  ]
-}
-```
-
-Alanlar:
-- `items` → Zorunlu.  
-  - `product_id` (INTEGER) → `products.id`  
-  - `qty` (FLOAT) → Miktar (ürünün birimine göre kg/adet vb.)
-
-Örnek cevap:
-
-```json
-{
-  "total_min": 100.5,
-  "total_max": 140.75
-}
-```
-
-Notlar:
-- Her ürün için **en güncel** `min_price` ve `max_price` kullanılır.
-- `items` alanı yoksa **400 Bad Request** döner.
-
----
-
-## Log Dosyaları
-
-- `backend/scraper.log` → Scraper için genel loglar.
-- `backend/logs/hal_scraper.log` → `run_scraper.sh` üzerinden çalışan cron job çıktıları.
-
-Bu loglar, hata ayıklama ve takip için kullanılabilir.
 
 ---
 
 ## Geliştirme Notları
 
-- Backend Flask uygulaması, CORS için `Flask-Cors` kullanır. Bu sayede farklı porttaki frontend (örn. Vite/React) rahatça bağlanabilir.
-- Veritabanı bağlantısı `get_db()` fonksiyonuyla her istek için açılıp iş bitince kapatılır.
-- Ürün görselleri için `image_url` alanı şimdilik opsiyoneldir; istenirse harici bir görsel servisiyle doldurulabilir.
-
-Bu README, backend klasörünün içeriğini ve kullanımını açıklamaktadır. Frontend tarafı için `frontend` klasöründe ayrı bir README oluşturulabilir.
+- Backend ve frontend bağımsızdır; isterseniz sadece API’yi veya sadece UI’ı kullanabilirsiniz.
+- Frontend tarafında API adresini değiştirmek isterseniz:
+  - `frontend/src/api/client.ts` içindeki `baseURL` veya
+  - `frontend/vite.config.ts` içindeki proxy ayarını güncellemeniz yeterlidir.
+- Proje, ABB verilerini sadece **bilgilendirme amaçlı** gösterir; resmi fiyat bilgisinin
+  değişebileceğini göz önünde bulundurun.
